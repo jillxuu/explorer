@@ -1,5 +1,5 @@
 import {Types} from "aptos";
-import {ReactNode, useEffect, useState} from "react";
+import {ReactNode, useState} from "react";
 import Error from "../../Error";
 import {useGetAccountModules} from "../../../../api/hooks/useGetAccountModules";
 import EmptyTabContent from "../../../../components/IndividualPageContent/EmptyTabContent";
@@ -25,6 +25,11 @@ import useSubmitTransaction from "../../../../api/hooks/useSubmitTransaction";
 import {useGlobalState} from "../../../../global-config/GlobalConfig";
 import {view} from "../../../../api";
 import {grey} from "../../../../themes/colors/aptosColorPalette";
+import {Code} from "../../Components/CodeSnippet";
+import {
+  PackageMetadata,
+  useGetAccountPackages,
+} from "../../../../api/hooks/useGetAccountResource";
 
 type ContractFormType = {
   typeArgs: string[];
@@ -44,6 +49,10 @@ function Contract({address, isRead}: {address: string; isRead: boolean}) {
   const {data, isLoading, error} = useGetAccountModules(address);
   const [selectedModuleName, setSelectedModuleName] = useState<string>();
   const [selectedFnName, setSelectedFnName] = useState<string>();
+  const sortedPackages: PackageMetadata[] = useGetAccountPackages(address);
+  const selectedModule = sortedPackages
+    .flatMap((pkg) => pkg.modules)
+    .find((module) => module.name === selectedModuleName);
 
   if (!isRead && !isWideScreen) {
     return (
@@ -133,19 +142,26 @@ function Contract({address, isRead}: {address: string; isRead: boolean}) {
         />
       </Grid>
       <Grid item md={9} xs={12}>
-        {!module || !fn ? (
-          <Box
-            padding={4}
-            bgcolor={theme.palette.mode === "dark" ? grey[800] : grey[100]}
-            borderRadius={1}
-          >
+        <Box
+          padding={4}
+          bgcolor={theme.palette.mode === "dark" ? grey[800] : grey[100]}
+          borderRadius={1}
+        >
+          {!module || !fn ? (
             <Typography>Please select a function</Typography>
-          </Box>
-        ) : isRead ? (
-          <ReadContractForm module={module} fn={fn} key={contractFormKey} />
-        ) : (
-          <RunContractForm module={module} fn={fn} key={contractFormKey} />
-        )}
+          ) : isRead ? (
+            <ReadContractForm module={module} fn={fn} key={contractFormKey} />
+          ) : (
+            <RunContractForm module={module} fn={fn} key={contractFormKey} />
+          )}
+
+          {module && fn && selectedModule && (
+            <>
+              <Divider sx={{margin: "16px 0"}} />
+              <Code bytecode={selectedModule?.source} />
+            </>
+          )}
+        </Box>
       </Grid>
     </Grid>
   );
@@ -166,9 +182,6 @@ function ContractSidebar({
       bgcolor={theme.palette.mode === "dark" ? grey[800] : grey[100]}
       borderRadius={1}
     >
-      <Typography fontSize={16} fontWeight={500} marginBottom={"24px"}>
-        Select function
-      </Typography>
       <Box>
         {Object.entries(moduleAndFnsGroup)
           .sort((a, b) => a[0].localeCompare(b[0]))
